@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Sparkles, GitBranch, Zap, Move, Link as LinkIcon, Save, Download } from 'lucide-react';
+import { Sparkles, GitBranch, Zap, Move, Link as LinkIcon, Save, RefreshCw } from 'lucide-react';
 
 interface Echo {
   id: string;
@@ -20,12 +20,25 @@ export default function EchoForge() {
   const [mode, setMode] = useState<'manifest' | 'evolve' | 'orchestrate' | 'cleanup'>('manifest');
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [orchestrateInput, setOrchestrateInput] = useState('');
-  const [showOrchestrate, setShowOrchestrate] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const canvasRef = useRef<HTMLDivElement>(null);
 
-  // Load from localStorage + try to load from data/echoes.json (future git sync)
-  useEffect(() => {
+  // Load from server-side JSON + local fallback
+  const loadEchoes = async () => {
+    try {
+      const res = await fetch('/api/echoes');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.length > 0) {
+          setEchoes(data);
+          return;
+        }
+      }
+    } catch (e) {
+      console.log('No server data yet, using local');
+    }
+    // Fallback to localStorage or initial
     const saved = localStorage.getItem('echoForgeData');
     if (saved) {
       setEchoes(JSON.parse(saved));
@@ -33,7 +46,7 @@ export default function EchoForge() {
       const initial: Echo = {
         id: 'fanz-core',
         title: 'FANZ MYCELIUM v5.1',
-        content: 'Living agentic brain. Drag, connect, evolve. Git-trackable persistence + full FANZ orchestration now active.',
+        content: 'Server-synced living mycelium. Drag, connect, evolve. State saved to data/echoes.json via git.',
         type: 'agent',
         x: 240,
         y: 160,
@@ -41,28 +54,44 @@ export default function EchoForge() {
         status: 'manifested'
       };
       setEchoes([initial]);
-      localStorage.setItem('echoForgeData', JSON.stringify([initial]));
     }
+  };
+
+  useEffect(() => {
+    loadEchoes();
   }, []);
 
-  // Auto-save to localStorage
+  // Auto-save to local + optional server sync
   useEffect(() => {
     if (echoes.length > 0) {
       localStorage.setItem('echoForgeData', JSON.stringify(echoes));
     }
   }, [echoes]);
 
+  const saveToServer = async () => {
+    setIsSaving(true);
+    try {
+      const res = await fetch('/api/echoes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(echoes),
+      });
+      const result = await res.json();
+      alert(result.message || 'Saved to server!');
+    } catch (error) {
+      alert('Server save failed. Use Vault download + git commit instead.');
+    }
+    setIsSaving(false);
+  };
+
   const saveToVault = () => {
     const dataStr = JSON.stringify(echoes, null, 2);
-    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-    const exportFileDefaultName = 'echo-forge-vault.json';
-
-    const linkElement = document.createElement('a');
-    linkElement.setAttribute('href', dataUri);
-    linkElement.setAttribute('download', exportFileDefaultName);
-    linkElement.click();
-
-    alert('✅ Vault snapshot downloaded! Commit data/echoes.json or this file to git for full persistence.');
+    const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+    const link = document.createElement('a');
+    link.href = dataUri;
+    link.download = `echo-forge-mycelium-${new Date().toISOString().slice(0,10)}.json`;
+    link.click();
+    alert('✅ Vault snapshot downloaded. Commit data/echoes.json in Termux for full git persistence.');
   };
 
   const spawnEcho = (type: Echo['type']) => {
@@ -83,26 +112,26 @@ export default function EchoForge() {
   const evolveEcho = (id: string) => {
     const echo = echoes.find(e => e.id === id);
     if (!echo) return;
-    const prompt = `Evolve this ECHO FORGE echo creatively for the agentic community:\nTitle: ${echo.title}\nType: ${echo.type}\nContent: ${echo.content}\n\nGive a richer version + Termux/bash ideas.`;
-    alert(`✅ Grok Prompt Ready!\n\nCopy and ask me (Grok):\n\n${prompt}`);
+    const prompt = `Evolve this ECHO FORGE echo:\nTitle: ${echo.title}\nType: ${echo.type}\nContent: ${echo.content}\n\nGive richer version + Termux commands.`;
+    alert(`✅ Grok Prompt Ready!\n\n${prompt}`);
   };
 
   const generateCommand = () => {
-    const fanzCommands = {
-      manifest: `git checkout -b feature/new-echo\n# edit then:\ngit add . && git commit -m "manifest new echo" && git push`,
-      evolve: `git pull\n# improve forge then commit & push`,
-      orchestrate: `git checkout -b feature/orchestrate-vision\n# describe vision in app/forge then push`,
-      cleanup: `git status && git branch -a`,
-      new: `git checkout -b feature/new-agent\nnpx create-next-app@latest . --yes --force`,
+    const cmds: Record<string, string> = {
+      manifest: `git checkout -b feature/new-echo\n# edit then: git add . && git commit -m "manifest" && git push`,
+      evolve: `git pull\n# update forge then commit & push`,
+      orchestrate: `git checkout -b feature/orchestrate\n# use Orchestrate mode then push`,
+      cleanup: `git status`,
+      new: `git checkout -b feature/new-agent`,
       launch: `vercel --prod`,
-      wire: `echo "Wire Vercel + Railway URLs in env"`,
-      vault: `git add data/echoes.json && git commit -m "vault: snapshot mycelium" && git push`,
+      wire: `echo "Wire Vercel ↔ Railway"`,
+      vault: `git add data/echoes.json && git commit -m "vault: mycelium snapshot" && git push`,
     };
-    const cmd = fanzCommands[mode as keyof typeof fanzCommands] || `git status`;
-    navigator.clipboard.writeText(cmd).then(() => alert(`📋 Copied FANZ-style command:\n\n${cmd}`));
+    const cmd = cmds[mode] || `git status`;
+    navigator.clipboard.writeText(cmd).then(() => alert(`📋 Copied:\n\n${cmd}`));
   };
 
-  // Drag logic (mouse + touch)
+  // Drag handlers (mouse + touch)
   const startDrag = (id: string, e: any) => {
     setDraggedId(id);
     e.stopPropagation();
@@ -113,13 +142,12 @@ export default function EchoForge() {
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
     setEchoes(echoes.map(echo => 
-      echo.id === draggedId ? { ...echo, x: Math.max(0, clientX - 160), y: Math.max(0, clientY - 140) } : echo
+      echo.id === draggedId ? { ...echo, x: Math.max(20, clientX - 160), y: Math.max(20, clientY - 140) } : echo
     ));
   };
 
   const endDrag = () => setDraggedId(null);
 
-  // Connection logic
   const toggleConnection = (id: string) => {
     if (!selectedId || selectedId === id) return;
     setEchoes(echoes.map(echo => {
@@ -133,8 +161,8 @@ export default function EchoForge() {
 
   const runOrchestrate = () => {
     if (!orchestrateInput.trim()) return;
-    const prompt = `You are Grok helping build ECHO FORGE mycelium.\n\nVision: ${orchestrateInput}\n\nGenerate 3-5 connected echoes (title, type, content, suggested connections). Make them exciting and agentic. Suggest Termux commands where relevant.`;
-    alert(`✅ Orchestrate Prompt Ready!\n\nCopy and ask me (Grok):\n\n${prompt}\n\nThen paste my response and use "Spawn" to add them.`);
+    const prompt = `You are Grok. Vision from user: "${orchestrateInput}"\n\nGenerate 3-5 connected ECHO FORGE echoes (title, type, content, suggested connections). Make them exciting, agentic, and discovery-pushing. Suggest Termux/git commands.`;
+    alert(`✅ Full Orchestrate Prompt Ready!\n\nCopy and ask me (Grok):\n\n${prompt}`);
     setOrchestrateInput('');
   };
 
@@ -157,7 +185,7 @@ export default function EchoForge() {
             </div>
             <div>
               <h1 className="text-5xl font-bold tracking-tighter">ECHO FORGE</h1>
-              <p className="text-purple-400">Living Mycelium Network • Grok-powered • FANZ v5.1</p>
+              <p className="text-purple-400">Server-synced Mycelium • Grok-powered • FANZ v5.1</p>
             </div>
           </div>
 
@@ -165,47 +193,45 @@ export default function EchoForge() {
             {(['manifest','evolve','orchestrate','cleanup'] as const).map(m => (
               <button 
                 key={m} 
-                onClick={() => { setMode(m); setShowOrchestrate(m === 'orchestrate'); }}
+                onClick={() => { setMode(m); }}
                 className={`px-6 py-3 rounded-xl text-sm font-medium ${mode === m ? 'bg-purple-600 shadow-lg' : 'bg-zinc-900 hover:bg-zinc-800 border border-zinc-700'}`}
               >
                 {m.toUpperCase()}
               </button>
             ))}
+            <button onClick={saveToServer} disabled={isSaving} className="px-6 py-3 rounded-xl text-sm font-medium bg-violet-600 hover:bg-violet-700 flex items-center gap-2 disabled:opacity-50">
+              <Save size={16} /> {isSaving ? 'Saving...' : 'Save to Server'}
+            </button>
             <button onClick={saveToVault} className="px-6 py-3 rounded-xl text-sm font-medium bg-emerald-600 hover:bg-emerald-700 flex items-center gap-2">
-              <Save size={16} /> Vault
+              <Download size={16} /> Vault
             </button>
           </div>
         </div>
 
-        {/* Canvas */}
+        {/* Canvas with connections */}
         <div 
-          ref={canvasRef}
           className="relative border border-purple-900/50 rounded-3xl h-[65vh] bg-black/90 overflow-hidden"
           style={{backgroundImage: 'linear-gradient(rgba(139,92,246,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(139,92,246,0.08) 1px, transparent 1px)', backgroundSize: '40px 40px'}}
         >
-          {/* SVG Connections */}
-          <svg className="absolute inset-0 w-full h-full pointer-events-none z-0" style={{opacity: 0.75}}>
-            {echoes.flatMap(echo => 
-              echo.connections.map(targetId => {
-                const target = echoes.find(e => e.id === targetId);
-                if (!target) return null;
-                return (
-                  <line
-                    key={`\( {echo.id}- \){targetId}`}
-                    x1={echo.x + 160} y1={echo.y + 80}
-                    x2={target.x + 160} y2={target.y + 80}
-                    stroke="#a855f7" strokeWidth="2.5" strokeDasharray="6 3" strokeOpacity="0.85"
-                  />
-                );
-              })
-            )}
+          <svg className="absolute inset-0 w-full h-full pointer-events-none z-0" style={{opacity: 0.8}}>
+            {echoes.flatMap(echo => echo.connections.map(targetId => {
+              const target = echoes.find(e => e.id === targetId);
+              if (!target) return null;
+              return (
+                <line
+                  key={`\( {echo.id}- \){targetId}`}
+                  x1={echo.x + 160} y1={echo.y + 80}
+                  x2={target.x + 160} y2={target.y + 80}
+                  stroke="#a855f7" strokeWidth="2.5" strokeDasharray="6 3"
+                />
+              );
+            }))}
           </svg>
 
-          {/* Nodes */}
           {echoes.map(echo => (
             <div
               key={echo.id}
-              className="absolute bg-zinc-950 border border-purple-500/40 hover:border-purple-400 rounded-3xl p-6 w-80 shadow-2xl cursor-move select-none transition-all z-10"
+              className="absolute bg-zinc-950 border border-purple-500/40 hover:border-purple-400 rounded-3xl p-6 w-80 shadow-2xl cursor-move z-10 transition-all"
               style={{ left: echo.x, top: echo.y }}
               onMouseDown={(e) => startDrag(echo.id, e)}
               onTouchStart={(e) => startDrag(echo.id, e)}
@@ -217,14 +243,13 @@ export default function EchoForge() {
                   <h3 className="font-semibold text-xl mt-1">{echo.title}</h3>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={(e) => {e.stopPropagation(); evolveEcho(echo.id);}} className="text-purple-400 hover:text-white"><Zap size={22} /></button>
+                  <button onClick={(e) => {e.stopPropagation(); evolveEcho(echo.id);}}><Zap size={22} className="text-purple-400 hover:text-white" /></button>
                   {selectedId && selectedId !== echo.id && (
-                    <button onClick={(e) => {e.stopPropagation(); toggleConnection(echo.id);}} className="text-purple-400 hover:text-white"><LinkIcon size={22} /></button>
+                    <button onClick={(e) => {e.stopPropagation(); toggleConnection(echo.id);}}><LinkIcon size={22} className="text-purple-400 hover:text-white" /></button>
                   )}
                 </div>
               </div>
               <p className="mt-4 text-sm text-zinc-400 line-clamp-4">{echo.content}</p>
-              <div className="text-[10px] text-zinc-500 mt-3 flex items-center gap-1"><Move size={12} /> Drag to move</div>
             </div>
           ))}
         </div>
@@ -236,7 +261,6 @@ export default function EchoForge() {
             <button onClick={generateCommand} className="w-full py-5 bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 rounded-2xl font-semibold text-lg">
               Generate & Copy {mode} Command
             </button>
-            <p className="text-zinc-500 mt-4 text-sm">Full FANZ v5.1 style commands for your pipeline.</p>
           </div>
 
           {selectedEcho && (
@@ -247,26 +271,19 @@ export default function EchoForge() {
                 defaultValue={selectedEcho.content}
                 onChange={(e) => setEchoes(echoes.map(ec => ec.id === selectedEcho.id ? {...ec, content: e.target.value} : ec))}
               />
-              <div className="flex gap-3 mt-4">
-                <button onClick={() => spawnEcho('pipeline')} className="flex-1 py-3 bg-emerald-600 rounded-2xl">Spawn Pipeline</button>
-                <button onClick={() => spawnEcho('agent')} className="flex-1 py-3 bg-amber-600 rounded-2xl">Spawn Agent</button>
-              </div>
             </div>
           )}
 
           {mode === 'orchestrate' && (
-            <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-8 col-span-full lg:col-span-2">
-              <h2 className="text-xl mb-4">Orchestrate Mode — Describe your vision</h2>
+            <div className="col-span-full bg-zinc-950 border border-zinc-800 rounded-3xl p-8">
+              <h2 className="text-xl mb-4">Orchestrate Mode</h2>
               <textarea 
-                className="w-full h-40 bg-black border border-zinc-700 rounded-2xl p-5 text-sm font-mono resize-y"
-                placeholder="Build a full agentic pipeline for Termux + Vercel that includes vault persistence and community sharing..."
+                className="w-full h-40 bg-black border border-zinc-700 rounded-2xl p-5 text-sm font-mono"
+                placeholder="Build a complete agentic pipeline with vault, community sharing, and Termux automation..."
                 value={orchestrateInput}
                 onChange={(e) => setOrchestrateInput(e.target.value)}
               />
-              <button 
-                onClick={runOrchestrate}
-                className="mt-4 w-full py-4 bg-gradient-to-r from-violet-600 to-purple-600 rounded-2xl font-semibold"
-              >
+              <button onClick={runOrchestrate} className="mt-4 w-full py-4 bg-gradient-to-r from-violet-600 to-purple-600 rounded-2xl font-semibold">
                 Ask Grok to Orchestrate
               </button>
             </div>
