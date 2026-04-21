@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Sparkles, GitBranch, Zap, Move, Link as LinkIcon, Save, RefreshCw } from 'lucide-react';
+import { Sparkles, GitBranch, Zap, Move, Link as LinkIcon, Save, RefreshCw, Download } from 'lucide-react';
 
 interface Echo {
   id: string;
@@ -24,7 +24,7 @@ export default function EchoForge() {
 
   const canvasRef = useRef<HTMLDivElement>(null);
 
-  // Load from server-side JSON + local fallback
+  // Load from server + local fallback
   const loadEchoes = async () => {
     try {
       const res = await fetch('/api/echoes');
@@ -35,10 +35,8 @@ export default function EchoForge() {
           return;
         }
       }
-    } catch (e) {
-      console.log('No server data yet, using local');
-    }
-    // Fallback to localStorage or initial
+    } catch (e) {}
+    
     const saved = localStorage.getItem('echoForgeData');
     if (saved) {
       setEchoes(JSON.parse(saved));
@@ -46,7 +44,7 @@ export default function EchoForge() {
       const initial: Echo = {
         id: 'fanz-core',
         title: 'FANZ MYCELIUM v5.1',
-        content: 'Server-synced living mycelium. Drag, connect, evolve. State saved to data/echoes.json via git.',
+        content: 'Server-synced living mycelium with draggable nodes, connections, and git persistence.',
         type: 'agent',
         x: 240,
         y: 160,
@@ -61,7 +59,6 @@ export default function EchoForge() {
     loadEchoes();
   }, []);
 
-  // Auto-save to local + optional server sync
   useEffect(() => {
     if (echoes.length > 0) {
       localStorage.setItem('echoForgeData', JSON.stringify(echoes));
@@ -77,9 +74,9 @@ export default function EchoForge() {
         body: JSON.stringify(echoes),
       });
       const result = await res.json();
-      alert(result.message || 'Saved to server!');
+      alert(result.message || 'Mycelium saved to server!');
     } catch (error) {
-      alert('Server save failed. Use Vault download + git commit instead.');
+      alert('Server save failed — use Vault download instead.');
     }
     setIsSaving(false);
   };
@@ -112,15 +109,15 @@ export default function EchoForge() {
   const evolveEcho = (id: string) => {
     const echo = echoes.find(e => e.id === id);
     if (!echo) return;
-    const prompt = `Evolve this ECHO FORGE echo:\nTitle: ${echo.title}\nType: ${echo.type}\nContent: ${echo.content}\n\nGive richer version + Termux commands.`;
-    alert(`✅ Grok Prompt Ready!\n\n${prompt}`);
+    const prompt = `Evolve this ECHO FORGE echo creatively:\nTitle: ${echo.title}\nType: ${echo.type}\nContent: ${echo.content}\n\nGive a richer version + Termux/bash ideas.`;
+    alert(`✅ Grok Prompt Ready!\n\nCopy and ask me (Grok):\n\n${prompt}`);
   };
 
   const generateCommand = () => {
     const cmds: Record<string, string> = {
       manifest: `git checkout -b feature/new-echo\n# edit then: git add . && git commit -m "manifest" && git push`,
       evolve: `git pull\n# update forge then commit & push`,
-      orchestrate: `git checkout -b feature/orchestrate\n# use Orchestrate mode then push`,
+      orchestrate: `git checkout -b feature/orchestrate\n# use Orchestrate mode`,
       cleanup: `git status`,
       new: `git checkout -b feature/new-agent`,
       launch: `vercel --prod`,
@@ -131,7 +128,6 @@ export default function EchoForge() {
     navigator.clipboard.writeText(cmd).then(() => alert(`📋 Copied:\n\n${cmd}`));
   };
 
-  // Drag handlers (mouse + touch)
   const startDrag = (id: string, e: any) => {
     setDraggedId(id);
     e.stopPropagation();
@@ -161,8 +157,8 @@ export default function EchoForge() {
 
   const runOrchestrate = () => {
     if (!orchestrateInput.trim()) return;
-    const prompt = `You are Grok. Vision from user: "${orchestrateInput}"\n\nGenerate 3-5 connected ECHO FORGE echoes (title, type, content, suggested connections). Make them exciting, agentic, and discovery-pushing. Suggest Termux/git commands.`;
-    alert(`✅ Full Orchestrate Prompt Ready!\n\nCopy and ask me (Grok):\n\n${prompt}`);
+    const prompt = `You are Grok. Vision: "${orchestrateInput}"\n\nGenerate 3-5 connected ECHO FORGE echoes with title, type, content, and suggested connections. Make them exciting and agentic.`;
+    alert(`✅ Orchestrate Prompt Ready!\n\nCopy and ask me (Grok):\n\n${prompt}`);
     setOrchestrateInput('');
   };
 
@@ -193,7 +189,7 @@ export default function EchoForge() {
             {(['manifest','evolve','orchestrate','cleanup'] as const).map(m => (
               <button 
                 key={m} 
-                onClick={() => { setMode(m); }}
+                onClick={() => setMode(m)}
                 className={`px-6 py-3 rounded-xl text-sm font-medium ${mode === m ? 'bg-purple-600 shadow-lg' : 'bg-zinc-900 hover:bg-zinc-800 border border-zinc-700'}`}
               >
                 {m.toUpperCase()}
@@ -208,24 +204,26 @@ export default function EchoForge() {
           </div>
         </div>
 
-        {/* Canvas with connections */}
+        {/* Canvas */}
         <div 
           className="relative border border-purple-900/50 rounded-3xl h-[65vh] bg-black/90 overflow-hidden"
           style={{backgroundImage: 'linear-gradient(rgba(139,92,246,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(139,92,246,0.08) 1px, transparent 1px)', backgroundSize: '40px 40px'}}
         >
           <svg className="absolute inset-0 w-full h-full pointer-events-none z-0" style={{opacity: 0.8}}>
-            {echoes.flatMap(echo => echo.connections.map(targetId => {
-              const target = echoes.find(e => e.id === targetId);
-              if (!target) return null;
-              return (
-                <line
-                  key={`\( {echo.id}- \){targetId}`}
-                  x1={echo.x + 160} y1={echo.y + 80}
-                  x2={target.x + 160} y2={target.y + 80}
-                  stroke="#a855f7" strokeWidth="2.5" strokeDasharray="6 3"
-                />
-              );
-            }))}
+            {echoes.flatMap(echo => 
+              echo.connections.map(targetId => {
+                const target = echoes.find(e => e.id === targetId);
+                if (!target) return null;
+                return (
+                  <line
+                    key={`\( {echo.id}- \){targetId}`}
+                    x1={echo.x + 160} y1={echo.y + 80}
+                    x2={target.x + 160} y2={target.y + 80}
+                    stroke="#a855f7" strokeWidth="2.5" strokeDasharray="6 3"
+                  />
+                );
+              })
+            )}
           </svg>
 
           {echoes.map(echo => (
@@ -279,7 +277,7 @@ export default function EchoForge() {
               <h2 className="text-xl mb-4">Orchestrate Mode</h2>
               <textarea 
                 className="w-full h-40 bg-black border border-zinc-700 rounded-2xl p-5 text-sm font-mono"
-                placeholder="Build a complete agentic pipeline with vault, community sharing, and Termux automation..."
+                placeholder="Describe your vision for the next evolution of ECHO FORGE..."
                 value={orchestrateInput}
                 onChange={(e) => setOrchestrateInput(e.target.value)}
               />
