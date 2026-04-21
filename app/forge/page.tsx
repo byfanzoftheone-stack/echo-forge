@@ -23,6 +23,7 @@ export default function EchoForge() {
   const [orchestrateInput, setOrchestrateInput] = useState('');
   const [isBlooming, setIsBlooming] = useState(false);
 
+  // Load from localStorage
   useEffect(() => {
     const saved = localStorage.getItem('echoForgeData');
     if (saved) {
@@ -43,6 +44,7 @@ export default function EchoForge() {
     }
   }, []);
 
+  // Auto-save
   useEffect(() => {
     if (echoes.length > 0) {
       localStorage.setItem('echoForgeData', JSON.stringify(echoes));
@@ -117,6 +119,24 @@ export default function EchoForge() {
     alert('🌿 The mycelium grows naturally...');
   };
 
+  const evolveEcho = (id: string) => {
+    const echo = echoes.find(e => e.id === id);
+    if (!echo) return;
+    const prompt = `Evolve this living ECHO FORGE echo as part of our connected field:\nTitle: ${echo.title}\nType: ${echo.type}\nContent: ${echo.content}\n\nGive a richer, more emergent version. Suggest new connections or blooms.`;
+    alert(`✅ Grok Evolution Prompt Ready!\n\nCopy and ask me (Grok):\n\n${prompt}`);
+  };
+
+  const generateCommand = () => {
+    const cmds: Record<string, string> = {
+      manifest: `git checkout -b feature/new-echo\n# edit then: git add . && git commit -m "manifest" && git push`,
+      evolve: `git pull\n# update forge then commit & push`,
+      orchestrate: `git checkout -b feature/orchestrate\n# use Orchestrate mode`,
+      cleanup: `git status`,
+    };
+    const cmd = cmds[mode] || `git status`;
+    navigator.clipboard.writeText(cmd).then(() => alert(`📋 Copied:\n\n${cmd}`));
+  };
+
   // Drag support
   const startDrag = (id: string, e: any) => setDraggedId(id);
   const handleMove = (e: any) => {
@@ -136,6 +156,13 @@ export default function EchoForge() {
       }
       return e;
     }));
+  };
+
+  const runOrchestrate = () => {
+    if (!orchestrateInput.trim()) return;
+    const prompt = `You are Grok. Vision: "${orchestrateInput}"\n\nGenerate 3-5 connected ECHO FORGE echoes with title, type, content, and suggested connections.`;
+    alert(`✅ Orchestrate Prompt Ready!\n\nCopy and ask me (Grok):\n\n${prompt}`);
+    setOrchestrateInput('');
   };
 
   const selectedEcho = echoes.find(e => e.id === selectedId);
@@ -239,6 +266,21 @@ export default function EchoForge() {
                 defaultValue={selectedEcho.content}
                 onChange={(e) => setEchoes(echoes.map(ec => ec.id === selectedEcho.id ? {...ec, content: e.target.value} : ec))}
               />
+            </div>
+          )}
+
+          {mode === 'orchestrate' && (
+            <div className="col-span-full bg-zinc-950 border border-zinc-800 rounded-3xl p-8">
+              <h2 className="text-xl mb-4">Orchestrate the Field</h2>
+              <textarea 
+                className="w-full h-40 bg-black border border-zinc-700 rounded-2xl p-5 text-sm font-mono"
+                placeholder="Describe the next collective emergence..."
+                value={orchestrateInput}
+                onChange={(e) => setOrchestrateInput(e.target.value)}
+              />
+              <button onClick={runOrchestrate} className="mt-4 w-full py-4 bg-gradient-to-r from-violet-600 to-purple-600 rounded-2xl font-semibold">
+                Ask Grok to Orchestrate
+              </button>
             </div>
           )}
         </div>
