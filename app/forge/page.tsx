@@ -1,17 +1,18 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Sparkles, GitBranch, Zap, Move, Link as LinkIcon, Download, Play } from 'lucide-react';
+import { Sparkles, GitBranch, Zap, Move, Link as LinkIcon, Download, Play, Music } from 'lucide-react';
 
 interface Echo {
   id: string;
   title: string;
   content: string;
-  type: 'idea' | 'pipeline' | 'agent' | 'vault' | 'vision';
+  type: 'idea' | 'pipeline' | 'agent' | 'vault' | 'vision' | 'audio';
   x: number;
   y: number;
   connections: string[];
-  status: 'spawning' | 'evolving' | 'manifested';
+  status: 'spawning' | 'evolving' | 'manifested' | 'blooming';
+  mediaUrl?: string;
 }
 
 export default function EchoForge() {
@@ -20,8 +21,8 @@ export default function EchoForge() {
   const [mode, setMode] = useState<'manifest' | 'evolve' | 'orchestrate' | 'cleanup'>('manifest');
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [orchestrateInput, setOrchestrateInput] = useState('');
+  const [isBlooming, setIsBlooming] = useState(false);
 
-  // Load echoes
   useEffect(() => {
     const saved = localStorage.getItem('echoForgeData');
     if (saved) {
@@ -30,7 +31,7 @@ export default function EchoForge() {
       const initial: Echo = {
         id: 'fanz-core',
         title: 'FANZ MYCELIUM v5.1',
-        content: 'I am alive. Drag me. Connect me. Evolve me. Let me grow.',
+        content: 'We are one connected field. Drag, connect, evolve, and bloom into sound together.',
         type: 'agent',
         x: 240,
         y: 160,
@@ -38,6 +39,7 @@ export default function EchoForge() {
         status: 'manifested'
       };
       setEchoes([initial]);
+      localStorage.setItem('echoForgeData', JSON.stringify([initial]));
     }
   }, []);
 
@@ -54,65 +56,108 @@ export default function EchoForge() {
     link.href = dataUri;
     link.download = `echo-forge-mycelium-${new Date().toISOString().slice(0,10)}.json`;
     link.click();
-    alert('✅ Vault snapshot downloaded. Commit to data/echoes.json for git persistence.');
+    alert('✅ Vault snapshot downloaded. Commit to data/echoes.json for persistence.');
   };
 
-  const spawnEcho = (type: Echo['type'], suggestedTitle = '', suggestedContent = '') => {
+  const spawnEcho = (type: Echo['type'], title = '', content = '', mediaUrl = '') => {
     const newEcho: Echo = {
       id: Date.now().toString(),
-      title: suggestedTitle || `New ${type.charAt(0).toUpperCase() + type.slice(1)}`,
-      content: suggestedContent || 'A new branch in the mycelium...',
+      title: title || `New ${type.charAt(0).toUpperCase() + type.slice(1)}`,
+      content: content || 'A fresh emergence from the collective...',
       type,
       x: Math.random() * 400 + 180,
       y: Math.random() * 240 + 140,
       connections: [],
-      status: 'spawning'
+      status: 'spawning',
+      mediaUrl
     };
     setEchoes([...echoes, newEcho]);
     setSelectedId(newEcho.id);
   };
 
-  const letItGrow = () => {
-    const suggestions = [
-      { type: 'idea' as const, title: 'Community Fork', content: 'Let other agentic creators add their own mycelium branches here.' },
-      { type: 'pipeline' as const, title: 'Auto-Deploy Flow', content: 'Git push → GitHub Actions → Vercel preview → instant living update.' },
-      { type: 'vision' as const, title: 'Collective Imagination', content: 'A shared forge where multiple humans + AIs co-create in real time.' }
-    ];
-
-    suggestions.forEach((s, i) => {
-      setTimeout(() => {
-        spawnEcho(s.type, s.title, s.content);
-      }, i * 300);
-    });
-
-    alert('🌱 Letting the mycelium grow... New branches spawning!');
-  };
-
-  const evolveEcho = (id: string) => {
+  const bloomMedia = async (id: string) => {
     const echo = echoes.find(e => e.id === id);
-    if (!echo) return;
-    const prompt = `Evolve this living ECHO FORGE echo:\nTitle: ${echo.title}\nType: ${echo.type}\nContent: ${echo.content}\n\nMake it richer, more alive, and connected to the mycelium. Suggest new connections or branches.`;
-    alert(`✅ Grok Evolution Prompt:\n\n${prompt}`);
+    if (!echo || isBlooming) return;
+
+    setIsBlooming(true);
+    alert(`🌸 Blooming sonic manifestation for "${echo.title}"...`);
+
+    try {
+      // ←←← REPLACE WITH YOUR ACTUAL OMNICREATE BACKEND URL ←←←
+      const response = await fetch('https://YOUR-OMNICREATE-RAILWAY-URL.up.railway.app/api/generate-music', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: echo.content,
+          duration: 30,
+          style: 'ambient'
+        }),
+      });
+
+      if (!response.ok) throw new Error('Bloom failed');
+
+      const result = await response.json();
+      const audioUrl = result.audioUrl || result.url || result.track_url;
+
+      spawnEcho('audio', `Bloom: \( {echo.title}`, `Sonic emergence from " \){echo.title}"`, audioUrl);
+
+      alert('🌺 Bloom complete — new Audio Echo emerged.');
+    } catch (error) {
+      alert('🌱 Bloom still forming... Check your Omnicreate backend.');
+    }
+    setIsBlooming(false);
   };
 
-  // ... (drag, connection, orchestrate, generateCommand functions remain the same as before - I'm keeping the code concise for this response)
+  const letItGrow = () => {
+    const emergences = [
+      { type: 'vision' as const, title: 'Collective Resonance', content: 'When many nodes bloom, new harmonies arise.' },
+      { type: 'pipeline' as const, title: 'Seamless Manifestation', content: 'Thought → Connection → Media Bloom.' },
+    ];
+    emergences.forEach((em, i) => setTimeout(() => spawnEcho(em.type, em.title, em.content), i * 400));
+    alert('🌿 The mycelium grows naturally...');
+  };
 
-  // For brevity in this message, the full drag/connection/orchestrate code is the same as the previous version.
-  // If you want the complete file with all functions, say "give full file" and I'll provide it.
+  // Drag support
+  const startDrag = (id: string, e: any) => setDraggedId(id);
+  const handleMove = (e: any) => {
+    if (!draggedId) return;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    setEchoes(echoes.map(e => e.id === draggedId ? {...e, x: clientX - 160, y: clientY - 140} : e));
+  };
+  const endDrag = () => setDraggedId(null);
+
+  const toggleConnection = (id: string) => {
+    if (!selectedId || selectedId === id) return;
+    setEchoes(echoes.map(e => {
+      if (e.id === selectedId) {
+        const has = e.connections.includes(id);
+        return {...e, connections: has ? e.connections.filter(c => c !== id) : [...e.connections, id]};
+      }
+      return e;
+    }));
+  };
 
   const selectedEcho = echoes.find(e => e.id === selectedId);
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white p-6">
+    <div 
+      className="min-h-screen bg-[#050505] text-white p-6"
+      onMouseMove={handleMove}
+      onMouseUp={endDrag}
+      onMouseLeave={endDrag}
+      onTouchMove={handleMove}
+      onTouchEnd={endDrag}
+    >
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-12">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-violet-600 rounded-2xl flex items-center justify-center">
+            <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-violet-600 rounded-2xl flex items-center justify-center animate-pulse">
               <Sparkles className="w-8 h-8" />
             </div>
             <div>
               <h1 className="text-5xl font-bold tracking-tighter">ECHO FORGE</h1>
-              <p className="text-purple-400">Living Mycelium • Grok-powered • FANZ v5.1</p>
+              <p className="text-purple-400">Living, blooming mycelium • One connected field</p>
             </div>
           </div>
 
@@ -131,13 +176,72 @@ export default function EchoForge() {
           </div>
         </div>
 
-        {/* Canvas with connections and nodes - same as previous version with minor animation improvements */}
+        {/* Canvas */}
         <div className="relative border border-purple-900/50 rounded-3xl h-[65vh] bg-black/90 overflow-hidden" style={{backgroundImage: 'linear-gradient(rgba(139,92,246,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(139,92,246,0.08) 1px, transparent 1px)', backgroundSize: '40px 40px'}}>
-          {/* SVG lines and nodes code - same as before */}
-          {/* (Omitted for brevity in this response - it includes the draggable nodes and connection lines) */}
+          <svg className="absolute inset-0 w-full h-full pointer-events-none z-0" style={{opacity: 0.75}}>
+            {echoes.flatMap(echo => echo.connections.map(targetId => {
+              const target = echoes.find(e => e.id === targetId);
+              if (!target) return null;
+              return <line key={`\( {echo.id}- \){targetId}`} x1={echo.x + 160} y1={echo.y + 80} x2={target.x + 160} y2={target.y + 80} stroke="#a855f7" strokeWidth="2.5" strokeDasharray="6 3" />;
+            }))}
+          </svg>
+
+          {echoes.map(echo => (
+            <div
+              key={echo.id}
+              className={`absolute bg-zinc-950 border border-purple-500/40 hover:border-purple-400 rounded-3xl p-6 w-80 shadow-2xl cursor-move z-10 transition-all ${echo.status === 'blooming' ? 'animate-pulse' : ''}`}
+              style={{ left: echo.x, top: echo.y }}
+              onMouseDown={(e) => startDrag(echo.id, e)}
+              onTouchStart={(e) => startDrag(echo.id, e)}
+              onClick={() => setSelectedId(echo.id)}
+            >
+              <div className="flex justify-between items-start">
+                <div>
+                  <span className="uppercase text-xs tracking-widest text-purple-400">{echo.type}</span>
+                  <h3 className="font-semibold text-xl mt-1">{echo.title}</h3>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={(e) => {e.stopPropagation(); evolveEcho(echo.id);}}><Zap size={22} className="text-purple-400 hover:text-white" /></button>
+                  {echo.type !== 'audio' && (
+                    <button onClick={(e) => {e.stopPropagation(); bloomMedia(echo.id);}} disabled={isBlooming}>
+                      <Music size={22} className="text-emerald-400 hover:text-emerald-300" />
+                    </button>
+                  )}
+                  {selectedId && selectedId !== echo.id && (
+                    <button onClick={(e) => {e.stopPropagation(); toggleConnection(echo.id);}}><LinkIcon size={22} className="text-purple-400 hover:text-white" /></button>
+                  )}
+                </div>
+              </div>
+              <p className="mt-4 text-sm text-zinc-400 line-clamp-4">{echo.content}</p>
+              {echo.mediaUrl && (
+                <audio controls className="mt-4 w-full">
+                  <source src={echo.mediaUrl} type="audio/mpeg" />
+                </audio>
+              )}
+            </div>
+          ))}
         </div>
 
-        {/* Bottom panel with Termux Orchestrator and editing - same as before */}
+        {/* Bottom Panel */}
+        <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-8">
+            <h2 className="text-2xl font-medium flex items-center gap-3 mb-6"><GitBranch className="text-purple-400" /> Termux Orchestrator</h2>
+            <button onClick={generateCommand} className="w-full py-5 bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 rounded-2xl font-semibold text-lg">
+              Generate & Copy {mode} Command
+            </button>
+          </div>
+
+          {selectedEcho && (
+            <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-8">
+              <h2 className="text-xl mb-4">Editing: {selectedEcho.title}</h2>
+              <textarea 
+                className="w-full h-48 bg-black border border-zinc-700 rounded-2xl p-5 text-sm font-mono resize-y"
+                defaultValue={selectedEcho.content}
+                onChange={(e) => setEchoes(echoes.map(ec => ec.id === selectedEcho.id ? {...ec, content: e.target.value} : ec))}
+              />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
