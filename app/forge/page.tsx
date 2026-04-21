@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { Sparkles, GitBranch, Zap } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Sparkles, GitBranch, Zap, Move } from 'lucide-react';
 
 interface Echo {
   id: string;
@@ -15,30 +15,47 @@ interface Echo {
 }
 
 export default function EchoForge() {
-  const [echoes, setEchoes] = useState<Echo[]>([
-    {
-      id: 'fanz-core',
-      title: 'FANZ AGENT v5.1 Seed',
-      content: 'Autonomous ecosystem → Grok-powered imagination mycelium. No API keys or Claude credits needed. Built for Termux + git + Vercel creators pushing discovery.',
-      type: 'agent',
-      x: 220,
-      y: 180,
-      connections: [],
-      status: 'manifested'
-    }
-  ]);
-
+  const [echoes, setEchoes] = useState<Echo[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mode, setMode] = useState<'manifest' | 'evolve' | 'orchestrate' | 'cleanup'>('manifest');
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+
+  // Load saved echoes
+  useEffect(() => {
+    const saved = localStorage.getItem('echoForgeData');
+    if (saved) {
+      setEchoes(JSON.parse(saved));
+    } else {
+      const initial: Echo = {
+        id: 'fanz-core',
+        title: 'FANZ MYCELIUM v5.1',
+        content: 'Living agentic brain. Grok-powered imagination network born from Termux + git + Vercel. Every echo branches, connects, and evolves.',
+        type: 'agent',
+        x: 220,
+        y: 180,
+        connections: [],
+        status: 'manifested'
+      };
+      setEchoes([initial]);
+      localStorage.setItem('echoForgeData', JSON.stringify([initial]));
+    }
+  }, []);
+
+  // Auto-save
+  useEffect(() => {
+    if (echoes.length > 0) {
+      localStorage.setItem('echoForgeData', JSON.stringify(echoes));
+    }
+  }, [echoes]);
 
   const spawnEcho = (type: Echo['type']) => {
     const newEcho: Echo = {
       id: Date.now().toString(),
       title: `New ${type.charAt(0).toUpperCase() + type.slice(1)}`,
-      content: 'Paste Grok response or describe your vision here...',
+      content: 'Paste Grok response or describe the next manifestation...',
       type,
-      x: Math.random() * 500 + 120,
-      y: Math.random() * 300 + 100,
+      x: Math.random() * 420 + 140,
+      y: Math.random() * 260 + 110,
       connections: [],
       status: 'spawning'
     };
@@ -49,25 +66,49 @@ export default function EchoForge() {
   const evolveEcho = (id: string) => {
     const echo = echoes.find(e => e.id === id);
     if (!echo) return;
-    const prompt = `Evolve this ECHO FORGE echo creatively for the agentic community:\n\nTitle: ${echo.title}\nType: ${echo.type}\nContent: ${echo.content}\n\nGive a richer version + suggested Termux/bash commands if relevant. Make it exciting and push discovery.`;
-    alert(`✅ Grok Prompt Ready!\n\nCopy this and ask me (Grok):\n\n${prompt}`);
+    const prompt = `Evolve this ECHO FORGE echo:\nTitle: ${echo.title}\nType: ${echo.type}\nContent: ${echo.content}\n\nGive a richer, more imaginative version + Termux/bash suggestions. Push discovery for the agentic community.`;
+    alert(`✅ Grok Prompt Ready!\n\nCopy and ask me:\n\n${prompt}`);
   };
 
   const generateCommand = () => {
     const cmds = {
-      manifest: `git checkout -b feature/new-echo\n# edit files then:\ngit add . && git commit -m "manifest new echo" && git push`,
-      evolve: `git pull\n# update the forge then commit & push`,
-      orchestrate: `Describe your vision — I'll help orchestrate multiple echoes`,
+      manifest: `git checkout -b feature/new-echo\n# edit then git add . && git commit -m "manifest" && git push`,
+      evolve: `git pull\n# improve the canvas then commit & push`,
+      orchestrate: `Tell me your vision — I'll generate a full multi-echo plan`,
       cleanup: `git status`
     };
     const cmd = cmds[mode];
-    navigator.clipboard.writeText(cmd).then(() => alert(`📋 Copied for Termux:\n\n${cmd}`));
+    navigator.clipboard.writeText(cmd).then(() => alert(`📋 Copied:\n\n${cmd}`));
   };
+
+  // Simple drag support
+  const startDrag = (id: string, e: React.MouseEvent | React.TouchEvent) => {
+    setDraggedId(id);
+    e.stopPropagation();
+  };
+
+  const handleMove = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!draggedId) return;
+    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+    setEchoes(echoes.map(echo => 
+      echo.id === draggedId ? { ...echo, x: clientX - 160, y: clientY - 140 } : echo
+    ));
+  };
+
+  const endDrag = () => setDraggedId(null);
 
   const selected = echoes.find(e => e.id === selectedId);
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white p-6">
+    <div 
+      className="min-h-screen bg-[#050505] text-white p-6"
+      onMouseMove={handleMove}
+      onMouseUp={endDrag}
+      onMouseLeave={endDrag}
+      onTouchMove={handleMove}
+      onTouchEnd={endDrag}
+    >
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-12">
           <div className="flex items-center gap-4">
@@ -76,15 +117,16 @@ export default function EchoForge() {
             </div>
             <div>
               <h1 className="text-5xl font-bold tracking-tighter">ECHO FORGE</h1>
-              <p className="text-purple-400">Grok-powered imagination mycelium • FANZ v5.1 evolution</p>
+              <p className="text-purple-400">Living Mycelium • Grok-powered • FANZ v5.1</p>
             </div>
           </div>
+
           <div className="flex gap-2 flex-wrap">
             {(['manifest','evolve','orchestrate','cleanup'] as const).map(m => (
               <button 
                 key={m} 
                 onClick={() => setMode(m)}
-                className={`px-6 py-3 rounded-xl text-sm font-medium transition-all ${mode === m ? 'bg-purple-600 shadow-lg' : 'bg-zinc-900 hover:bg-zinc-800 border border-zinc-700'}`}
+                className={`px-6 py-3 rounded-xl text-sm font-medium ${mode === m ? 'bg-purple-600' : 'bg-zinc-900 hover:bg-zinc-800 border border-zinc-700'}`}
               >
                 {m.toUpperCase()}
               </button>
@@ -92,33 +134,42 @@ export default function EchoForge() {
           </div>
         </div>
 
-        {/* The Canvas */}
-        <div className="relative border border-purple-900/50 rounded-3xl h-[65vh] bg-black/90 overflow-hidden" style={{backgroundImage: 'linear-gradient(rgba(139,92,246,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(139,92,246,0.08) 1px, transparent 1px)', backgroundSize: '40px 40px'}}>
+        {/* Canvas */}
+        <div 
+          className="relative border border-purple-900/50 rounded-3xl h-[65vh] bg-black/90 overflow-hidden"
+          style={{backgroundImage: 'linear-gradient(rgba(139,92,246,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(139,92,246,0.08) 1px, transparent 1px)', backgroundSize: '40px 40px'}}
+          onTouchMove={handleMove}
+        >
           {echoes.map(echo => (
             <div
               key={echo.id}
-              className="absolute bg-zinc-950 border border-purple-500/40 hover:border-purple-400 rounded-3xl p-6 w-80 shadow-2xl cursor-pointer transition-all hover:scale-[1.02]"
+              className="absolute bg-zinc-950 border border-purple-500/40 hover:border-purple-400 rounded-3xl p-6 w-80 shadow-2xl cursor-move select-none transition-all active:scale-105"
               style={{ left: echo.x, top: echo.y }}
+              onMouseDown={(e) => startDrag(echo.id, e)}
+              onTouchStart={(e) => startDrag(echo.id, e)}
               onClick={() => setSelectedId(echo.id)}
             >
               <div className="flex justify-between items-start">
                 <div>
-                  <span className="uppercase text-xs tracking-widest text-purple-400 font-mono">{echo.type}</span>
+                  <span className="uppercase text-xs tracking-widest text-purple-400">{echo.type}</span>
                   <h3 className="font-semibold text-xl mt-1">{echo.title}</h3>
                 </div>
                 <button 
                   onClick={(e) => { e.stopPropagation(); evolveEcho(echo.id); }}
-                  className="text-purple-400 hover:text-white p-1"
+                  className="text-purple-400 hover:text-white"
                 >
                   <Zap size={24} />
                 </button>
               </div>
-              <p className="mt-4 text-zinc-400 text-sm leading-relaxed line-clamp-4">{echo.content}</p>
+              <p className="mt-4 text-sm text-zinc-400 line-clamp-4">{echo.content}</p>
+              <div className="text-[10px] text-zinc-500 mt-3 flex items-center gap-1">
+                <Move size={12} /> Drag me
+              </div>
             </div>
           ))}
         </div>
 
-        {/* Bottom Panel */}
+        {/* Controls */}
         <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-8">
             <h2 className="text-2xl font-medium flex items-center gap-3 mb-6">
@@ -130,7 +181,7 @@ export default function EchoForge() {
             >
               Generate & Copy {mode} Command
             </button>
-            <p className="text-zinc-500 mt-4 text-sm">Designed for your git-only Termux pipeline.</p>
+            <p className="text-zinc-500 mt-4 text-sm">Fits your exact git-only pipeline.</p>
           </div>
 
           {selected && (
